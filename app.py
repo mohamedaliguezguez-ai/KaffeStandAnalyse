@@ -11,7 +11,7 @@ st.title("☕ Kaffee-KI: Füllstand-Wächter")
 # --- SIDEBAR: EINSTELLUNGEN ---
 st.sidebar.header("Konfiguration")
 api_key = st.sidebar.text_input("Gemini API Key eingeben", type="password")
-model_id = "gemini-1.5-flash" # Schnell & kostenlos
+model_id = "gemini-2.0-flash" # Schnell & kostenlos
 
 # --- SYSTEM PROMPT ---
 SYSTEM_PROMPT = """
