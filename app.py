@@ -13,7 +13,7 @@ st.title("☕ Kaffee-KI: Füllstand-Wächter")
 st.sidebar.header("Konfiguration")
 api_key = st.sidebar.text_input("Groq API Key eingeben", type="password")
 # Groq Vision Modell (Llama 3.2 ist sehr stark in Bildanalyse)
-model_id = "llama-3.2-90b-vision"
+model_id = "llama-3.3-70b-versatile"
 
 
 # Hilfsfunktion: Bild für Groq in Base64 umwandeln
@@ -91,3 +91,4 @@ else:
                 st.error(f"Fehler bei der Groq-Anfrage: {e}")
 
 st.info("Tipp: Halte das Handy stabil. Groq ist extrem schnell!")
+
