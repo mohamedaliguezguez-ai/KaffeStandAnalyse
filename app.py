@@ -1,17 +1,23 @@
 import streamlit as st
 import PIL.Image
 import json
-from google import genai
-from google.genai import types
+import base64
+import io
+from groq import Groq # Neu: Groq Bibliothek nutzen
 
 # --- PAGE CONFIG ---
-st.set_page_config(page_title="Kaffee-KI Prototyp", page_icon="☕")
+st.set_page_config(page_title="Kaffee-KI Prototyp (Groq)", page_icon="☕")
 st.title("☕ Kaffee-KI: Füllstand-Wächter")
 
 # --- SIDEBAR: EINSTELLUNGEN ---
 st.sidebar.header("Konfiguration")
-api_key = st.sidebar.text_input("Gemini API Key eingeben", type="password")
-model_id = "gemini-2.0-flash" # Schnell & kostenlos
+api_key = st.sidebar.text_input("Groq API Key eingeben", type="password")
+# Groq Vision Modell (Llama 3.2 ist sehr stark in Bildanalyse)
+model_id = "llama-3.2-90b-vision-preview" 
+
+# Hilfsfunktion: Bild für Groq in Base64 umwandeln
+def encode_image(image_file):
+    return base64.b64encode(image_file.getvalue()).decode('utf-8')
 
 # --- SYSTEM PROMPT ---
 SYSTEM_PROMPT = """
@@ -30,39 +36,46 @@ Sicherheitsregel: Wenn der Stand > 90% ist, gib "STOP" aus.
 
 # --- HAUPTTEIL ---
 if not api_key:
-    st.warning("Bitte gib deinen API-Key in der Seitenleiste ein, um zu starten.")
+    st.warning("Bitte gib deinen Groq API-Key in der Seitenleiste ein, um zu starten.")
 else:
-    client = genai.Client(api_key=api_key)
+    # Groq Client initialisieren
+    client = Groq(api_key=api_key)
 
-    # Kamera-Eingabe (öffnet auf dem Handy direkt die Kamera)
     img_file = st.camera_input("Foto der Tasse machen")
 
     if img_file:
-        # Bild für Gemini vorbereiten
-        img = PIL.Image.open(img_file)
+        # Bild in Base64 konvertieren für die API
+        base64_image = encode_image(img_file)
         
-        with st.spinner('KI analysiert Füllstand...'):
+        with st.spinner('Groq KI analysiert Füllstand...'):
             try:
-                # API Abfrage
-                response = client.models.generate_content(
+                # Groq API Abfrage (OpenAI-kompatibles Format)
+                response = client.chat.completions.create(
                     model=model_id,
-                    config=types.GenerateContentConfig(
-                        system_instruction=SYSTEM_PROMPT,
-                        response_mime_type="application/json"
-                    ),
-                    contents=[img]
+                    messages=[
+                        {
+                            "role": "user",
+                            "content": [
+                                {"type": "text", "text": SYSTEM_PROMPT},
+                                {
+                                    "type": "image_url",
+                                    "image_url": {
+                                        "url": f"data:image/jpeg;base64,{base64_image}",
+                                    },
+                                },
+                            ],
+                        }
+                    ],
+                    response_format={"type": "json_object"} # Erzwingt JSON-Ausgabe
                 )
                 
                 # Ergebnis parsen
-                res = json.loads(response.text)
+                res = json.loads(response.choices[0].message.content)
                 
                 # Visualisierung
                 st.subheader(f"Füllstand: {res['fill_percent']}%")
-                
-                # Status-Balken
                 st.progress(res['fill_percent'] / 100)
                 
-                # Empfehlung anzeigen
                 if res['action'] == "STOP":
                     st.error("🛑 STOPP! Tasse ist voll.")
                 elif res['action'] == "SLOW":
@@ -70,11 +83,10 @@ else:
                 else:
                     st.success("✅ Füllvorgang läuft...")
                 
-                # Detail-Info
                 with st.expander("KI-Details anzeigen"):
                     st.json(res)
 
             except Exception as e:
-                st.error(f"Fehler: {e}")
+                st.error(f"Fehler bei der Groq-Anfrage: {e}")
 
-st.info("Tipp: Halte das Handy stabil und achte auf gute Beleuchtung.")
+st.info("Tipp: Halte das Handy stabil. Groq ist extrem schnell!")
