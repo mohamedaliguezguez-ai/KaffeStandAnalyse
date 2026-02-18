@@ -18,20 +18,18 @@ api_key = st.sidebar.text_input("Groq API Key eingeben", type="password")
 
 # --- FUNKTIONEN ---
 
+from PIL import ImageEnhance
+
 def process_and_encode_image(image_file, max_size=(512, 512)):
-    """
-    Verkleinert das Bild auf max. 512px und wandelt es in Base64 um.
-    Das spart massiv Token und beschleunigt die Antwortzeit.
-    """
     img = PIL.Image.open(image_file)
-    
-    # Proportionale Verkleinerung
     img.thumbnail(max_size, PIL.Image.LANCZOS)
     
-    # In Buffer speichern (JPEG spart im Vergleich zu PNG zusätzlich Platz)
-    buffer = io.BytesIO()
-    img.save(buffer, format="JPEG", quality=85)
+    # Optional: Kontrast leicht erhöhen, um den Pegel deutlicher zu machen
+    enhancer = ImageEnhance.Contrast(img)
+    img = enhancer.enhance(1.2) 
     
+    buffer = io.BytesIO()
+    img.save(buffer, format="JPEG", quality=90) # Qualität etwas hochgeschraubt
     return base64.b64encode(buffer.getvalue()).decode('utf-8')
 
 # --- SYSTEM PROMPT ---
@@ -115,6 +113,7 @@ else:
 
             except Exception as e:
                 st.error(f"Fehler bei der Analyse: {e}")
+
 
 
 
