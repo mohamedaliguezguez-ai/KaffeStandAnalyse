@@ -3,56 +3,48 @@ import PIL.Image
 import json
 import base64
 import io
-from groq import Groq # Neu: Groq Bibliothek nutzen
+from groq import Groq
 
 # --- PAGE CONFIG ---
-st.set_page_config(page_title="Kaffee-KI Prototyp (Groq)", page_icon="☕")
+st.set_page_config(page_title="Kaffee-KI Prototyp", page_icon="☕")
 st.title("☕ Kaffee-KI: Füllstand-Wächter")
 
-# --- SIDEBAR: EINSTELLUNGEN ---
-st.sidebar.header("Konfiguration")
+# --- KONFIGURATION ---
+# Wir nutzen dein erfolgreich getestetes Modell!
+MODEL_ID = "meta-llama/llama-4-maverick-17b-128e-instruct"
+
+st.sidebar.header("Einstellungen")
 api_key = st.sidebar.text_input("Groq API Key eingeben", type="password")
-# Groq Vision Modell (Llama 3.2 ist sehr stark in Bildanalyse)
-model_id = "llama-3.3-70b-versatile"
 
-
-# Hilfsfunktion: Bild für Groq in Base64 umwandeln
 def encode_image(image_file):
     return base64.b64encode(image_file.getvalue()).decode('utf-8')
 
 # --- SYSTEM PROMPT ---
 SYSTEM_PROMPT = """
-Du bist ein präzises Messmodul für eine Kaffeemaschine.
-Deine Aufgabe: Analysiere das Bild der Tasse.
-1. Finde den inneren Boden der Tasse (0%) und den oberen Rand (100%).
-2. Bestimme den aktuellen Stand der Flüssigkeit (Kaffee).
-3. Gib NUR ein JSON-Objekt zurück:
+Du bist ein Messmodul. Analysiere das Bild der Kaffeetasse.
+Gib NUR ein JSON-Objekt zurück:
 {
   "fill_percent": int,
-  "action": "CONTINUE" | "SLOW" | "STOP",
+  "action": "CONTINUE" | "STOP",
   "confidence": float
 }
-Sicherheitsregel: Wenn der Stand > 90% ist, gib "STOP" aus.
+Regel: Wenn der Stand > 90% ist, gib "STOP" aus. Antworte ausschließlich im JSON-Format.
 """
 
 # --- HAUPTTEIL ---
 if not api_key:
-    st.warning("Bitte gib deinen Groq API-Key in der Seitenleiste ein, um zu starten.")
+    st.warning("Bitte gib deinen Groq API-Key in der Seitenleiste ein.")
 else:
-    # Groq Client initialisieren
     client = Groq(api_key=api_key)
-
     img_file = st.camera_input("Foto der Tasse machen")
 
     if img_file:
-        # Bild in Base64 konvertieren für die API
         base64_image = encode_image(img_file)
         
-        with st.spinner('Groq KI analysiert Füllstand...'):
+        with st.spinner('Llama 4 analysiert...'):
             try:
-                # Groq API Abfrage (OpenAI-kompatibles Format)
                 response = client.chat.completions.create(
-                    model=model_id,
+                    model=MODEL_ID,
                     messages=[
                         {
                             "role": "user",
@@ -60,35 +52,28 @@ else:
                                 {"type": "text", "text": SYSTEM_PROMPT},
                                 {
                                     "type": "image_url",
-                                    "image_url": {
-                                        "url": f"data:image/jpeg;base64,{base64_image}",
-                                    },
+                                    "image_url": {"url": f"data:image/jpeg;base64,{base64_image}"},
                                 },
                             ],
                         }
                     ],
-                    response_format={"type": "json_object"} # Erzwingt JSON-Ausgabe
+                    response_format={"type": "json_object"}
                 )
                 
                 # Ergebnis parsen
                 res = json.loads(response.choices[0].message.content)
                 
-                # Visualisierung
+                # Anzeige der Ergebnisse
                 st.subheader(f"Füllstand: {res['fill_percent']}%")
                 st.progress(res['fill_percent'] / 100)
                 
                 if res['action'] == "STOP":
-                    st.error("🛑 STOPP! Tasse ist voll.")
-                elif res['action'] == "SLOW":
-                    st.warning("⚠️ LANGSAMER füllen...")
+                    st.error("🛑 STOPP! Tasse voll.")
                 else:
-                    st.success("✅ Füllvorgang läuft...")
+                    st.success("✅ Füllen...")
                 
-                with st.expander("KI-Details anzeigen"):
+                with st.expander("KI-Details"):
                     st.json(res)
 
             except Exception as e:
-                st.error(f"Fehler bei der Groq-Anfrage: {e}")
-
-st.info("Tipp: Halte das Handy stabil. Groq ist extrem schnell!")
-
+                st.error(f"Fehler: {e}")
