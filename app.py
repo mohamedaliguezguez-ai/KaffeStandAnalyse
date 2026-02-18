@@ -100,11 +100,10 @@ else:
                     # Hier stoppt die App, da kein st.rerun() aufgerufen wird
                 else:
                     status_msg.success(f"✅ Stand: {fill}%. Nächstes Foto in 2 Sekunden...")
-                    
-
                 with st.expander("KI-Details (Rohdaten)"):
                     st.json(res)
 
             except Exception as e:
                 st.error(f"Fehler bei der Analyse: {e}")
+
 
