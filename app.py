@@ -36,21 +36,24 @@ def process_and_encode_image(image_file, max_size=(512, 512)):
 
 # --- SYSTEM PROMPT ---
 SYSTEM_PROMPT = """
-Du bist ein präzises optisches Messmodul für Flüssigkeitsstände.
-Analysiere das Bild schrittweise:
-1. Identifiziere den oberen Rand (Rim) der Tasse.
-2. Identifiziere die Oberfläche der Flüssigkeit (Kaffee/Schaum).
-3. Berechne den Abstand. Wenn die Flüssigkeit oder der Schaum weniger als 0,5cm vom Rand entfernt ist, ist der Stand 100%.
+Du bist ein objektiver Sensor für Füllstände. Deine Aufgabe ist eine neutrale Schätzung.
+Gehe logisch vor:
+1. Prüfe: Ist überhaupt Flüssigkeit in der Tasse? Wenn nein -> 0%.
+2. Identifiziere den Boden der Tasse und den oberen Rand.
+3. Bestimme die Position der Flüssigkeitsoberfläche relativ dazu.
+   - Oberfläche am Boden = 0-5%
+   - Oberfläche in der Mitte = 40-60%
+   - Oberfläche kurz unter dem Rand = 85-90%
+   - Oberfläche erreicht den Rand = 100%
 
-WICHTIG: Sei streng. Wenn die Tasse optisch voll aussieht, gib Werte über 95% an.
-Antworte NUR im JSON-Format:
+Antworte ausschließlich als JSON:
 {
-  "reasoning": "Kurze Beschreibung wo der Rand und der Pegel sind",
+  "detected_elements": "Was siehst du? (z.B. Leere Tasse, halbe Tasse Kaffee)",
   "fill_percent": int,
   "action": "CONTINUE" | "STOP",
   "confidence": float
 }
-Regel: Wenn fill_percent >= 90 ist, MUSS action "STOP" sein.
+WICHTIG: Gib nur "STOP" aus, wenn fill_percent wirklich >= 80 ist. Sei bei leeren Tassen ehrlich und gib 0% an.
 """
 
 # --- HAUPTTEIL ---
@@ -112,6 +115,7 @@ else:
 
             except Exception as e:
                 st.error(f"Fehler bei der Analyse: {e}")
+
 
 
 
