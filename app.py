@@ -36,14 +36,21 @@ def process_and_encode_image(image_file, max_size=(512, 512)):
 
 # --- SYSTEM PROMPT ---
 SYSTEM_PROMPT = """
-Du bist ein Messmodul. Analysiere das Bild der Kaffeetasse.
-Gib NUR ein JSON-Objekt zurück:
+Du bist ein präzises optisches Messmodul für Flüssigkeitsstände.
+Analysiere das Bild schrittweise:
+1. Identifiziere den oberen Rand (Rim) der Tasse.
+2. Identifiziere die Oberfläche der Flüssigkeit (Kaffee/Schaum).
+3. Berechne den Abstand. Wenn die Flüssigkeit oder der Schaum weniger als 0,5cm vom Rand entfernt ist, ist der Stand 100%.
+
+WICHTIG: Sei streng. Wenn die Tasse optisch voll aussieht, gib Werte über 95% an.
+Antworte NUR im JSON-Format:
 {
+  "reasoning": "Kurze Beschreibung wo der Rand und der Pegel sind",
   "fill_percent": int,
   "action": "CONTINUE" | "STOP",
   "confidence": float
 }
-Regel: Wenn der Stand >= 90% ist, gib "STOP" aus. Antworte ausschließlich im JSON-Format.
+Regel: Wenn fill_percent >= 90 ist, MUSS action "STOP" sein.
 """
 
 # --- HAUPTTEIL ---
@@ -105,5 +112,6 @@ else:
 
             except Exception as e:
                 st.error(f"Fehler bei der Analyse: {e}")
+
 
 
