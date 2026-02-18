@@ -33,25 +33,33 @@ def process_and_encode_image(image_file, max_size=(512, 512)):
     return base64.b64encode(buffer.getvalue()).decode('utf-8')
 
 # --- SYSTEM PROMPT ---
-SYSTEM_PROMPT = """
-Du bist ein objektiver Sensor für Füllstände. Deine Aufgabe ist eine neutrale Schätzung.
-Gehe logisch vor:
-1. Prüfe: Ist überhaupt Flüssigkeit in der Tasse? Wenn nein -> 0%.
-2. Identifiziere den Boden der Tasse und den oberen Rand.
-3. Bestimme die Position der Flüssigkeitsoberfläche relativ dazu.
-   - Oberfläche am Boden = 0-5%
-   - Oberfläche in der Mitte = 40-60%
-   - Oberfläche kurz unter dem Rand = 85-90%
-   - Oberfläche erreicht den Rand = 100%
 
-Antworte ausschließlich als JSON:
+SYSTEM_PROMPT = """
+Du bist ein industrielles Bildverarbeitungs-Modul. Deine Aufgabe ist die präzise Füllstandsmessung.
+
+Schritt-für-Schritt-Analyse:
+1. **Material-Check:** Prüfe, ob es sich wirklich um frischen Kaffee oder Schaum handelt. 
+   - Unterscheide klar zwischen einer gefüllten Tasse und Schmutzrückständen oder Verfärbungen am Glasrand. 
+   - Wenn nur Schmutz/Reste ohne echtes Volumen erkannt werden -> Füllstand 0%.
+
+2. **Geometrische Vermessung:** - Nutze den sichtbaren Glasdurchmesser als Referenzmaßstab (Standardglas ca. 7-8cm).
+   - Ermittle den vertikalen Abstand zwischen der Oberkante (Rim) und der Flüssigkeitsoberfläche (Liquid Level).
+
+3. **Logik-Auswertung:**
+   - Abstand > 5cm: Glas ist fast leer oder weniger als halb voll.
+   - Abstand ca. 3-4cm: Glas ist moderat gefüllt.
+   - Abstand <= 2cm: Das Glas gilt als VOLL.
+
+Antworte ausschließlich im JSON-Format:
 {
-  "detected_elements": "Was siehst du? (z.B. Leere Tasse, halbe Tasse Kaffee)",
+  "analysis": "Beschreibe kurz: Kaffee/Schaum erkannt? Schmutz ausgeschlossen? Geschätzter Abstand in cm?",
+  "estimated_distance_cm": float,
   "fill_percent": int,
   "action": "CONTINUE" | "STOP",
   "confidence": float
 }
-WICHTIG: Gib nur "STOP" aus, wenn fill_percent wirklich >= 80 ist. Sei bei leeren Tassen ehrlich und gib 0% an.
+
+Regel: Wenn der Abstand <= 2cm ist, setze fill_percent auf >= 90% und action auf "STOP".
 """
 
 # --- HAUPTTEIL ---
@@ -113,6 +121,7 @@ else:
 
             except Exception as e:
                 st.error(f"Fehler bei der Analyse: {e}")
+
 
 
 
