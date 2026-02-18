@@ -3,6 +3,7 @@ import PIL.Image
 import json
 import base64
 import io
+import time  # Neu für die Pause
 from groq import Groq
 
 # --- PAGE CONFIG ---
@@ -10,11 +11,14 @@ st.set_page_config(page_title="Kaffee-KI Prototyp", page_icon="☕")
 st.title("☕ Kaffee-KI: Füllstand-Wächter")
 
 # --- KONFIGURATION ---
-# Wir nutzen dein erfolgreich getestetes Modell!
 MODEL_ID = "meta-llama/llama-4-maverick-17b-128e-instruct"
 
 st.sidebar.header("Einstellungen")
 api_key = st.sidebar.text_input("Groq API Key eingeben", type="password")
+
+# Session State initialisieren, um den Loop zu steuern
+if "monitoring" not in st.session_state:
+    st.session_state.monitoring = False
 
 def encode_image(image_file):
     return base64.b64encode(image_file.getvalue()).decode('utf-8')
@@ -28,7 +32,7 @@ Gib NUR ein JSON-Objekt zurück:
   "action": "CONTINUE" | "STOP",
   "confidence": float
 }
-Regel: Wenn der Stand > 90% ist, gib "STOP" aus. Antworte ausschließlich im JSON-Format.
+Regel: Wenn der Stand >= 90% ist, gib "STOP" aus. Antworte ausschließlich im JSON-Format.
 """
 
 # --- HAUPTTEIL ---
@@ -36,7 +40,13 @@ if not api_key:
     st.warning("Bitte gib deinen Groq API-Key in der Seitenleiste ein.")
 else:
     client = Groq(api_key=api_key)
+    
+    # Kamera-Input
     img_file = st.camera_input("Foto der Tasse machen")
+
+    # Platzhalter für Statusmeldungen, damit sie nicht immer unten angehängt werden
+    status_placeholder = st.empty()
+    progress_placeholder = st.empty()
 
     if img_file:
         base64_image = encode_image(img_file)
@@ -60,18 +70,26 @@ else:
                     response_format={"type": "json_object"}
                 )
                 
-                # Ergebnis parsen
                 res = json.loads(response.choices[0].message.content)
-                
+                fill = res.get('fill_percent', 0)
+                action = res.get('action', 'STOP')
+
                 # Anzeige der Ergebnisse
-                st.subheader(f"Füllstand: {res['fill_percent']}%")
-                st.progress(res['fill_percent'] / 100)
+                status_placeholder.subheader(f"Füllstand: {fill}%")
+                progress_placeholder.progress(fill / 100)
                 
-                if res['action'] == "STOP":
-                    st.error("🛑 STOPP! Tasse voll.")
+                if action == "STOP" or fill >= 90:
+                    st.error("🛑 STOPP! Tasse ist voll (>= 90%).")
+                    st.session_state.monitoring = False # Stop den Prozess
+                    st.balloons() # Kleiner Erfolgseffekt
                 else:
-                    st.success("✅ Füllen...")
-                
+                    st.success(f"✅ Stand okay ({fill}%). Nächste Messung in 2 Sek...")
+                    st.session_state.monitoring = True
+                    
+                    # Die Magie: 2 Sekunden warten und App neu starten
+                    time.sleep(2)
+                    st.rerun() 
+
                 with st.expander("KI-Details"):
                     st.json(res)
 
